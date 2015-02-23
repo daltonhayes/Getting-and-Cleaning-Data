@@ -11,7 +11,11 @@ dataset2<-read.csv(files2, header = TRUE, sep = ",", quote = "\"",
 
 thelabels <- read.table("./UCI HAR Dataset/activity_labels.txt")[,2]
 findfeatures <- read.table("./UCI HAR Dataset/features.txt")[,2]
+#replace mean and std
 pullfeatures <- grepl("mean|std", features)
+
+ids = c("subject", "Activity_ID", "Activity_Label")
+datalabels = setdiff(colnames(data), ids)
 
 dataset1 <- read.table("./UCI HAR Dataset/test/dataset1.txt")
 dataset2 <- read.table("./UCI HAR Dataset/test/dataset2.txt")
@@ -37,14 +41,13 @@ Ytraindata[,2] = thelabels[Ytraindata[,1]]
 
 names(Ytraindata) = c("Activity_ID", "Activity_Label")
 names(subject_train) = "subject"
+
 # merges the data sets
 intermediate_merge <- merge(dataset1, dataset2, by=c("subject", "Activity_ID", "Activity_Label"), all.x=TRUE)
 final_merge <- merge(dataset3, intermediate_merge, by=c("subject", "Activity_ID", "Activity_Label"), all.y=TRUE)
 dataset3<-final_merge
 
-id_labels = c("subject", "Activity_ID", "Activity_Label")
-data_labels = setdiff(colnames(data), id_labels)
-coupledata = melt(data, id = id_labels, measure.vars = data_labels)
-tidy_data = dcast(coupledata, subject + Activity_Label ~ variable, mean)
 
-write.table(tidy_data, file = "./tidy_data.txt")
+coupledata = melt(data, id = id_labels, measure.vars = datalabels)
+tidytxt= dcast(coupledata, subject + Activity_Label ~ variable, mean)
+write.table(tidytxt, file = "tidy_data.txt")
