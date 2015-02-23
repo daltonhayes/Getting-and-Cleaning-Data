@@ -13,19 +13,19 @@ thelabels <- read.table("./UCI HAR Dataset/activity_labels.txt")[,2]
 findfeatures <- read.table("./UCI HAR Dataset/features.txt")[,2]
 pullfeatures <- grepl("mean|std", features)
 
-Xtestdata <- read.table("./UCI HAR Dataset/test/Xtestdata.txt")
-Ytestdata <- read.table("./UCI HAR Dataset/test/Ytestdata.txt")
+dataset1 <- read.table("./UCI HAR Dataset/test/dataset1.txt")
+dataset2 <- read.table("./UCI HAR Dataset/test/dataset2.txt")
 
 subject_test <- read.table("./UCI HAR Dataset/test/subject_test.txt")
-names(Xtestdata) = findfeatures
+names(dataset1) = findfeatures
 
-Xtestdata = Xtestdata[,extract_features]
-Ytestdata[,2] = activity_labels[Ytestdata[,1]]
+dataset1 = dataset1[,extract_features]
+dataset2[,2] = activity_labels[dataset2[,1]]
 
-names(Ytestdata) = c("Activity_ID", "Activity_Label")
+names(dataset2) = c("Activity_ID", "Activity_Label")
 names(subject_test) = "subject"
 
-test_data <- cbind(as.data.table(subject_test), Ytestdata, Xtestdata)
+test_data <- cbind(as.data.table(subject_test), dataset2, dataset1)
 
 Xtraindata <- read.table("./UCI HAR Dataset/train/Xtraindata.txt")
 Ytraindata <- read.table("./UCI HAR Dataset/train/Ytraindata.txt")
