@@ -1,53 +1,87 @@
-#find file names
-files1 <- as.character(list.files(path="[file path]"))
-readLines(files[1])
-files2 <- as.character(list.files(path="[file path]"))
-readLines(files[1])
-dataset1<-read.csv(files1, header = TRUE, sep = ",", quote = "\"",
-                   dec = ".", fill = TRUE, comment.char = "", ...)
-dataset2<-read.csv(files2, header = TRUE, sep = ",", quote = "\"",
-                   dec = ".", fill = TRUE, comment.char = "", ...)
+##The purpose of this R file is to extract data from 4 different data sets, then merge them,
+##extract specific values for mean and std deviation from them, and then show the averages
+##of that data in an easy to read and tidy data set
 
+#extract the test data
+x_test <- read.table("test/X_test.txt")
+y_test <- read.table("test/subject_test.txt")
 
-thelabels <- read.table("./UCI HAR Dataset/activity_labels.txt")[,2]
-findfeatures <- read.table("./UCI HAR Dataset/features.txt")[,2]
-#replace mean and std
-pullfeatures <- grepl("mean|std", features)
+#extract train data
+x_train <- read.table("train/X_train.txt")
+y_train <- read.table("train/subject_train.txt")
 
-ids = c("subject", "Activity_ID", "Activity_Label")
-datalabels = setdiff(colnames(data), ids)
+#combine the x and y data sets
+total_x<-rbind(x_train,x_test)
+total_y<-rbind(y_train,y_test)
 
-dataset1 <- read.table("./UCI HAR Dataset/test/dataset1.txt")
-dataset2 <- read.table("./UCI HAR Dataset/test/dataset2.txt")
+#combine the combined data sets
+total<-cbind(total_x,total_y)
 
-subject_test <- read.table("./UCI HAR Dataset/test/subject_test.txt")
-names(dataset1) = findfeatures
+#extract column names
+col_names <- read.table("features.txt")
 
-dataset1 = dataset1[,extract_features]
-dataset2[,2] = activity_labels[dataset2[,1]]
+#the column names are in a column so transposes and sets it as total data set's first row
+colnames(total)<-t(col_names[,2])
 
-names(dataset2) = c("Activity_ID", "Activity_Label")
-names(subject_test) = "subject"
+#Read in subject values for test 
+subject_test <- read.table("test/subject_test.txt")
 
-test_data <- cbind(as.data.table(subject_test), dataset2, dataset1)
+#Read in subject values for train
+subject_train <- read.table("train/subject_train.txt")
 
-Xtraindata <- read.table("./UCI HAR Dataset/train/Xtraindata.txt")
-Ytraindata <- read.table("./UCI HAR Dataset/train/Ytraindata.txt")
+#combine subjects
+subject_total=rbind(subject_train,subject_test)
 
-subject_train <- read.table("./UCI HAR Dataset/train/subject_train.txt")
-names(Xtraindata) = features
-Xtraindata = Xtraindata[,pullfeatures]
-Ytraindata[,2] = thelabels[Ytraindata[,1]]
+#extract activity labels
+activity_labels <- read.table("activity_labels.txt")
 
-names(Ytraindata) = c("Activity_ID", "Activity_Label")
-names(subject_train) = "subject"
+#extracts only the row numbers with either mean or std
+std_count<-grep("std()",colnames(total))
+mean_count<-grep("mean()",colnames(total))
 
-# merges the data sets
-intermediate_merge <- merge(dataset1, dataset2, by=c("subject", "Activity_ID", "Activity_Label"), all.x=TRUE)
-final_merge <- merge(dataset3, intermediate_merge, by=c("subject", "Activity_ID", "Activity_Label"), all.y=TRUE)
-dataset3<-final_merge
+#saves the columns with std or mean 
+std_cols<-total[,std_count]
+mean_cols<-total[,mean_count]
 
+#removes the mean frequency 
+meanFreq_cols<-grep("meanFreq",colnames(mean_cols))
+mean_cols<-mean_cols[,-meanFreq_cols]
 
-coupledata = melt(data, id = id_labels, measure.vars = datalabels)
-tidytxt= dcast(coupledata, subject + Activity_Label ~ variable, mean)
-write.table(tidytxt, file = "tidy_data.txt")
+#combine mean cols, std cols, the subjects, and the activities
+data<-cbind(subject_total,total_y,mean_cols,std_cols)
+
+#for later use
+tidydata<-c()
+subjects<-c(1:30)
+
+#rename data column names
+colnames(data)[1]<-"Subjects"
+colnames(data)[2]<-"Activities"
+
+#goes through every person and every activity for that person and adds it to the tidydata frame
+#only finds the mean for the specific subject and data point
+for(i in 1:30){
+  for(j in 1:6){
+    fake<-subset(data,Subjects==subjects[i]&Activities==activity_labels[j,1])
+    vector<-apply(fake[,3:68],2,mean)
+    new_vector<-cbind(subjects[i],activity_labels[j,2],t(vector))
+    tidydata<-rbind(tidydata,new_vector)
+  }
+}
+
+#rename the column names in tidydata
+colnames(tidydata)[1]="Subject"
+colnames(tidydata)[2]="Activity"
+
+#makes the names of tidydata easier to read and replaces variables names
+names(tidydata)<-gsub("At","Time",names(tidydata))
+names(tidydata)<-gsub("Acc","Accelerometer",names(tidydata))
+names(tidydata)<-gsub("^f","Frequency",names(tidydata))
+names(tidydata)<-gsub("Gyro","Gyroscope",names(tidydata))
+names(tidydata)<-gsub("Mag","Magnitude",names(tidydata))
+names(tidydata)<-gsub("BodyBody","Body",names(tidydata))
+
+#read the tidydata matrix to a text file
+#write.table(tidydata,file="tidydata.txt",row.name=FALSE)
+
+write.table(tidydata, "data_set_with_the_averages.txt",row.name=FALSE)
