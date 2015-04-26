@@ -2,65 +2,86 @@
 ##extract specific values for mean and std deviation from them, and then show the averages
 ##of that data in an easy to read and tidy data set
 
-## STEP 1: extract the test data
+#extract the test data
 x_test <- read.table("test/X_test.txt")
 y_test <- read.table("test/subject_test.txt")
 
 #extract train data
 x_train <- read.table("train/X_train.txt")
 y_train <- read.table("train/subject_train.txt")
-# load the reshape2 package (will be used in STEP 5)
-library(reshape2)
 
-# add column name for subject files
-names(subject_train) <- "subjectID"
-names(subject_test) <- "subjectID"
+#combine the x and y data sets
+total_x<-rbind(x_train,x_test)
+total_y<-rbind(y_train,y_test)
 
-# add column names for measurement files
-featureNames <- read.table("features.txt")
-names(X_train) <- featureNames$V2
-names(X_test) <- featureNames$V2
+#combine the combined data sets
+total<-cbind(total_x,total_y)
 
-# add column name for label files
-names(y_train) <- "activity"
-names(y_test) <- "activity"
+#extract column names
+col_names <- read.table("features.txt")
 
-# combine files into one dataset
-train <- cbind(subject_train, y_train, X_train)
-test <- cbind(subject_test, y_test, X_test)
-combined <- rbind(train, test)
+#the column names are in a column so transposes and sets it as total data set's first row
+colnames(total)<-t(col_names[,2])
 
+#Read in subject values for test 
+subject_test <- read.table("test/subject_test.txt")
 
-## STEP 2: Extracts only the measurements on the mean and standard
-## deviation for each measurement.
+#Read in subject values for train
+subject_train <- read.table("train/subject_train.txt")
 
-# determine which columns contain "mean()" or "std()"
-meanstdcols <- grepl("mean\\(\\)", names(combined)) |
-    grepl("std\\(\\)", names(combined))
+#combine subjects
+subject_total=rbind(subject_train,subject_test)
 
-# ensure that we also keep the subjectID and activity columns
-meanstdcols[1:2] <- TRUE
+#extract activity labels
+activity_labels <- read.table("activity_labels.txt")
 
-# remove unnecessary columns
-combined <- combined[, meanstdcols]
+#extracts only the row numbers with either mean or std
+std_count<-grep("std()",colnames(total))
+mean_count<-grep("mean()",colnames(total))
 
+#saves the columns with std or mean 
+std_cols<-total[,std_count]
+mean_cols<-total[,mean_count]
 
-## STEP 3: Uses descriptive activity names to name the activities
-## in the data set.
-## STEP 4: Appropriately labels the data set with descriptive
-## activity names. 
+#removes the mean frequency 
+meanFreq_cols<-grep("meanFreq",colnames(mean_cols))
+mean_cols<-mean_cols[,-meanFreq_cols]
 
-# convert the activity column from integer to factor
-combined$activity <- factor(combined$activity, labels=c("Walking",
-    "Walking Upstairs", "Walking Downstairs", "Sitting", "Standing", "Laying"))
+#combine mean cols, std cols, the subjects, and the activities
+data<-cbind(subject_total,total_y,mean_cols,std_cols)
 
+#for later use
+tidydata<-c()
+subjects<-c(1:30)
 
-## STEP 5: Creates a second, independent tidy data set with the
-## average of each variable for each activity and each subject.
+#rename data column names
+colnames(data)[1]<-"Subjects"
+colnames(data)[2]<-"Activities"
 
-# create the tidy data set
-melted <- melt(combined, id=c("subjectID","activity"))
-tidy <- dcast(melted, subjectID+activity ~ variable, mean)
+#goes through every person and every activity for that person and adds it to the tidydata frame
+#only finds the mean for the specific subject and data point
+for(i in 1:30){
+  for(j in 1:6){
+    fake<-subset(data,Subjects==subjects[i]&Activities==activity_labels[j,1])
+    vector<-apply(fake[,3:68],2,mean)
+    new_vector<-cbind(subjects[i],activity_labels[j,2],t(vector))
+    tidydata<-rbind(tidydata,new_vector)
+  }
+}
 
-# write the tidy data set to a file
-write.csv(tidy, "tidy.csv", row.names=FALSE)
+#rename the column names in tidydata
+colnames(tidydata)[1]="Subject"
+colnames(tidydata)[2]="Activity"
+
+#makes the names of tidydata easier to read and replaces variables names
+names(tidydata)<-gsub("At","Time",names(tidydata))
+names(tidydata)<-gsub("Acc","Accelerometer",names(tidydata))
+names(tidydata)<-gsub("^f","Frequency",names(tidydata))
+names(tidydata)<-gsub("Gyro","Gyroscope",names(tidydata))
+names(tidydata)<-gsub("Mag","Magnitude",names(tidydata))
+names(tidydata)<-gsub("BodyBody","Body",names(tidydata))
+
+#read the tidydata matrix to a text file
+#write.table(tidydata,file="tidydata.txt",row.name=FALSE)
+
+write.table(tidydata, "data_set_with_the_averages.txt",row.name=FALSE)
